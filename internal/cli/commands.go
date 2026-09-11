@@ -181,7 +181,9 @@ func newHistoryCommand(deps Dependencies) *cobra.Command {
 			return err
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "Logical message: %s\nRead: %t\n", detail.LogicalMessageID, detail.Read)
-		for index, revision := range detail.Revisions {
+		// Keep API/MCP order chronological; only human-readable output is newest first.
+		for index := len(detail.Revisions) - 1; index >= 0; index-- {
+			revision := detail.Revisions[index]
 			fmt.Fprintf(cmd.OutOrStdout(), "\nRevision %d/%d: %s\nAccepted: %s\nSender: %s\nTitle: %s\n", index+1, len(detail.Revisions), revision.ID, revision.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"), revision.SenderName, revision.Title)
 			if revision.Subtitle != "" {
 				fmt.Fprintf(cmd.OutOrStdout(), "Subtitle: %s\n", revision.Subtitle)
