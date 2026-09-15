@@ -16,6 +16,38 @@ import (
 
 type memoryCredentials struct{ token string }
 
+func TestUsagePreservesCountersAndValidatesOptionalMetadata(t *testing.T) {
+	for _, tt := range []struct {
+		fields      string
+		plan, state string
+	}{
+		{``, "", ""},
+		{`,"plan":"pro","billingState":"synchronized"`, "pro", "synchronized"},
+		{`,"plan":"free","billingState":"unavailable"`, "free", "unavailable"},
+		{`,"plan":"future","billingState":"unknown"`, "", ""},
+		{`,"plan":"bad\u001b[2J","billingState":"bad\nsecret"`, "", ""},
+	} {
+		t.Run(tt.fields, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/v1/usage" || r.Header.Get("Authorization") != "Bearer pm_cli_test" {
+					t.Error("wrong authorization")
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"used":9000,"limit":200,"periodStart":"2026-09-01T00:00:00Z","periodEnd":"2026-10-01T00:00:00Z"` + tt.fields + `}`))
+			}))
+			defer srv.Close()
+			s, err := New(srv.URL+"/v1", &memoryCredentials{token: "pm_cli_test"}, "", srv.Client())
+			if err != nil {
+				t.Fatal(err)
+			}
+			usage, err := s.Usage(context.Background())
+			if err != nil || usage.Used != 9000 || usage.Limit != 200 || usage.Plan != tt.plan || usage.BillingState != tt.state {
+				t.Fatalf("usage=%+v err=%v", usage, err)
+			}
+		})
+	}
+}
+
 func (m *memoryCredentials) Get() (string, error) {
 	if m.token == "" {
 		return "", credential.ErrNotFound

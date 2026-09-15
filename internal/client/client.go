@@ -405,8 +405,15 @@ func (s *Service) Usage(ctx context.Context) (cli.UsageResult, error) {
 	if response.JSON200 == nil {
 		return cli.UsageResult{}, responseError(response.StatusCode(), response.JSONDefault)
 	}
-	return cli.UsageResult{Used: response.JSON200.Used, Limit: response.JSON200.Limit,
-		ResetsAt: response.JSON200.PeriodEnd}, nil
+	result := cli.UsageResult{Used: response.JSON200.Used, Limit: response.JSON200.Limit,
+		ResetsAt: response.JSON200.PeriodEnd}
+	if value := response.JSON200.Plan; value != nil && value.Valid() {
+		result.Plan = string(*value)
+	}
+	if value := response.JSON200.BillingState; value != nil && value.Valid() {
+		result.BillingState = string(*value)
+	}
+	return result, nil
 }
 
 func (s *Service) Doctor(ctx context.Context) ([]cli.DoctorCheck, error) {

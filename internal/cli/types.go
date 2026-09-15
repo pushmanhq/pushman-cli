@@ -109,9 +109,11 @@ type HistoryDelivery struct {
 }
 
 type UsageResult struct {
-	Used     int
-	Limit    int
-	ResetsAt time.Time
+	Used         int
+	Limit        int
+	ResetsAt     time.Time
+	Plan         string
+	BillingState string
 }
 
 type DoctorCheck struct {

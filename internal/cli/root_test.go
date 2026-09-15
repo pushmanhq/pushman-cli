@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestVersionUsesInjectedOutput(t *testing.T) {
@@ -16,6 +17,27 @@ func TestVersionUsesInjectedOutput(t *testing.T) {
 	}
 	if got := out.String(); !strings.Contains(got, "1.2.3") || !strings.Contains(got, "abc") {
 		t.Fatalf("version output = %q", got)
+	}
+}
+
+func TestUsageKeepsLegacyLineAndSeparatesBillingWarning(t *testing.T) {
+	for _, plan := range []string{"", "free", "pro", "bad\x1b[2J"} {
+		out, diagnostics := new(bytes.Buffer), new(bytes.Buffer)
+		svc := &mcpStubService{usage: UsageResult{Used: 9000, Limit: 200, ResetsAt: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), Plan: plan, BillingState: "unavailable"}}
+		root := New(Dependencies{Service: svc, Out: out, ErrOut: diagnostics})
+		root.SetArgs([]string{"usage"})
+		if err := root.Execute(); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.HasPrefix(out.String(), "9000 of 200 messages used; resets 2026-10-01T00:00:00Z\n") {
+			t.Fatal(out.String())
+		}
+		if strings.Contains(out.String(), "could not") || strings.Contains(out.String(), "\x1b") {
+			t.Fatal("unsafe stdout")
+		}
+		if !strings.Contains(diagnostics.String(), "does not mean a subscription was canceled") {
+			t.Fatal(diagnostics.String())
+		}
 	}
 }
 

@@ -61,6 +61,11 @@ The send tool is explicitly described to clients as non-read-only, non-idempoten
 
 Pairing, logout, sender rename, credential creation or revocation, account changes, and billing are deliberately not exposed through MCP. Remote Streamable HTTP, MCP resources, and MCP prompts are not part of this version.
 
+Usage results may include server-provided `plan` and `billingState` metadata. Older servers
+omit them; clients must not infer a plan from the numerical limit. `billingState: unavailable`
+means the paid decision could not be checked, not that a subscription was canceled. Existing
+`used`, `limit`, and `resetsAt` fields are unchanged. There are no purchase or cancellation tools.
+
 ## Safe sending
 
 An AI client should ask before calling `pushman_send_notification` unless the user has already directly requested that exact send. Review the body, title, targets, URL, and update key when they matter. In particular:

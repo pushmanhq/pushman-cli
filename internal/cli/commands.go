@@ -216,6 +216,15 @@ func newUsageCommand(deps Dependencies) *cobra.Command {
 			return err
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "%d of %d messages used; resets %s\n", usage.Used, usage.Limit, usage.ResetsAt.Format("2006-01-02T15:04:05Z07:00"))
+		switch usage.Plan {
+		case "free":
+			fmt.Fprintln(cmd.OutOrStdout(), "Capacity tier: Free")
+		case "pro":
+			fmt.Fprintln(cmd.OutOrStdout(), "Capacity tier: Pro")
+		}
+		if usage.BillingState == "unavailable" {
+			fmt.Fprintln(cmd.ErrOrStderr(), "Billing could not be checked. The displayed limit is usable now; this does not mean a subscription was canceled.")
+		}
 		return nil
 	}}
 }

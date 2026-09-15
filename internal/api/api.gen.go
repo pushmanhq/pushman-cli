@@ -40,19 +40,19 @@ func (e DeliveryState) Valid() bool {
 
 // Defines values for DeviceNotificationStatus.
 const (
-	Disabled DeviceNotificationStatus = "disabled"
-	Enabled  DeviceNotificationStatus = "enabled"
-	Unknown  DeviceNotificationStatus = "unknown"
+	DeviceNotificationStatusDisabled DeviceNotificationStatus = "disabled"
+	DeviceNotificationStatusEnabled  DeviceNotificationStatus = "enabled"
+	DeviceNotificationStatusUnknown  DeviceNotificationStatus = "unknown"
 )
 
 // Valid indicates whether the value is a known member of the DeviceNotificationStatus enum.
 func (e DeviceNotificationStatus) Valid() bool {
 	switch e {
-	case Disabled:
+	case DeviceNotificationStatusDisabled:
 		return true
-	case Enabled:
+	case DeviceNotificationStatusEnabled:
 		return true
-	case Unknown:
+	case DeviceNotificationStatusUnknown:
 		return true
 	default:
 		return false
@@ -275,6 +275,45 @@ func (e SenderCredentialKind) Valid() bool {
 	case Automation:
 		return true
 	case PairedCli:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UsageBillingState.
+const (
+	UsageBillingStateDisabled     UsageBillingState = "disabled"
+	UsageBillingStateSynchronized UsageBillingState = "synchronized"
+	UsageBillingStateUnavailable  UsageBillingState = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the UsageBillingState enum.
+func (e UsageBillingState) Valid() bool {
+	switch e {
+	case UsageBillingStateDisabled:
+		return true
+	case UsageBillingStateSynchronized:
+		return true
+	case UsageBillingStateUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UsagePlan.
+const (
+	Free UsagePlan = "free"
+	Pro  UsagePlan = "pro"
+)
+
+// Valid indicates whether the value is a known member of the UsagePlan enum.
+func (e UsagePlan) Valid() bool {
+	switch e {
+	case Free:
+		return true
+	case Pro:
 		return true
 	default:
 		return false
@@ -626,12 +665,23 @@ type SenderCredentialKind string
 
 // Usage defines model for Usage.
 type Usage struct {
-	Limit                int                    `json:"limit"`
-	PeriodEnd            time.Time              `json:"periodEnd"`
-	PeriodStart          time.Time              `json:"periodStart"`
+	// BillingState Unavailable means only independently available Free and operator-credit capacity is usable.
+	BillingState *UsageBillingState `json:"billingState,omitempty"`
+	Limit        int                `json:"limit"`
+	PeriodEnd    time.Time          `json:"periodEnd"`
+	PeriodStart  time.Time          `json:"periodStart"`
+
+	// Plan Currently verified capacity tier, not a claim that an unavailable paid subscription ended.
+	Plan                 *UsagePlan             `json:"plan,omitempty"`
 	Used                 int                    `json:"used"`
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
+
+// UsageBillingState Unavailable means only independently available Free and operator-credit capacity is usable.
+type UsageBillingState string
+
+// UsagePlan Currently verified capacity tier, not a claim that an unavailable paid subscription ended.
+type UsagePlan string
 
 // Cursor defines model for Cursor.
 type Cursor = string
@@ -2643,6 +2693,14 @@ func (a *Usage) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	if raw, found := object["billingState"]; found {
+		err = json.Unmarshal(raw, &a.BillingState)
+		if err != nil {
+			return fmt.Errorf("error reading 'billingState': %w", err)
+		}
+		delete(object, "billingState")
+	}
+
 	if raw, found := object["limit"]; found {
 		err = json.Unmarshal(raw, &a.Limit)
 		if err != nil {
@@ -2665,6 +2723,14 @@ func (a *Usage) UnmarshalJSON(b []byte) error {
 			return fmt.Errorf("error reading 'periodStart': %w", err)
 		}
 		delete(object, "periodStart")
+	}
+
+	if raw, found := object["plan"]; found {
+		err = json.Unmarshal(raw, &a.Plan)
+		if err != nil {
+			return fmt.Errorf("error reading 'plan': %w", err)
+		}
+		delete(object, "plan")
 	}
 
 	if raw, found := object["used"]; found {
@@ -2694,6 +2760,13 @@ func (a Usage) MarshalJSON() ([]byte, error) {
 	var err error
 	object := make(map[string]json.RawMessage)
 
+	if a.BillingState != nil {
+		object["billingState"], err = json.Marshal(a.BillingState)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'billingState': %w", err)
+		}
+	}
+
 	object["limit"], err = json.Marshal(a.Limit)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling 'limit': %w", err)
@@ -2707,6 +2780,13 @@ func (a Usage) MarshalJSON() ([]byte, error) {
 	object["periodStart"], err = json.Marshal(a.PeriodStart)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling 'periodStart': %w", err)
+	}
+
+	if a.Plan != nil {
+		object["plan"], err = json.Marshal(a.Plan)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'plan': %w", err)
+		}
 	}
 
 	object["used"], err = json.Marshal(a.Used)

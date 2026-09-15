@@ -832,6 +832,19 @@ components:
         - periodStart
         - periodEnd
       properties:
+        plan:
+          type: string
+          enum:
+            - free
+            - pro
+          description: Currently verified capacity tier, not a claim that an unavailable paid subscription ended.
+        billingState:
+          type: string
+          enum:
+            - disabled
+            - synchronized
+            - unavailable
+          description: Unavailable means only independently available Free and operator-credit capacity is usable.
         used:
           type: integer
           minimum: 0

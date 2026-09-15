@@ -159,7 +159,15 @@ func registerMCPTools(server *mcp.Server, service Service) {
 		if err != nil {
 			return nil, mcpUsageOutput{}, err
 		}
-		return nil, mcpUsageOutput{Used: usage.Used, Limit: usage.Limit, ResetsAt: usage.ResetsAt.Format(time.RFC3339Nano)}, nil
+		result := mcpUsageOutput{Used: usage.Used, Limit: usage.Limit, ResetsAt: usage.ResetsAt.Format(time.RFC3339Nano)}
+		if usage.Plan == "free" || usage.Plan == "pro" {
+			result.Plan = usage.Plan
+		}
+		switch usage.BillingState {
+		case "disabled", "synchronized", "unavailable":
+			result.BillingState = usage.BillingState
+		}
+		return nil, result, nil
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -268,9 +276,11 @@ type mcpMessageDelivery struct {
 }
 
 type mcpUsageOutput struct {
-	Used     int    `json:"used"`
-	Limit    int    `json:"limit"`
-	ResetsAt string `json:"resetsAt"`
+	Used         int    `json:"used"`
+	Limit        int    `json:"limit"`
+	ResetsAt     string `json:"resetsAt"`
+	Plan         string `json:"plan,omitempty" jsonschema:"Currently verified capacity tier; not proof of subscription cancellation"`
+	BillingState string `json:"billingState,omitempty" jsonschema:"Billing synchronization status; unavailable does not mean canceled"`
 }
 
 type mcpStatusOutput struct {

@@ -29,7 +29,7 @@ func TestMCPToolSurfaceAndCalls(t *testing.T) {
 			Sound: "default", Format: "plain", UpdatedAt: acceptedAt,
 			Deliveries: []HistoryDelivery{{DeviceName: "iPhone", State: "delivered"}},
 		}}},
-		usage:  UsageResult{Used: 12, Limit: 200, ResetsAt: acceptedAt},
+		usage:  UsageResult{Used: 12, Limit: 200, ResetsAt: acceptedAt, Plan: "free", BillingState: "unavailable"},
 		status: StatusResult{Paired: true, Nickname: "Build Mac"},
 		checks: []DoctorCheck{{Name: "credential", OK: true, Message: "available"}},
 	}
@@ -92,6 +92,8 @@ func TestMCPToolSurfaceAndCalls(t *testing.T) {
 	callToolOK(t, session, "pushman_list_history", map[string]any{}, "messages", nil)
 	callToolOK(t, session, "pushman_get_message", map[string]any{"messageId": "msg_123"}, "logicalMessageId", "logical_123")
 	callToolOK(t, session, "pushman_get_usage", map[string]any{}, "limit", float64(200))
+	callToolOK(t, session, "pushman_get_usage", map[string]any{}, "plan", "free")
+	callToolOK(t, session, "pushman_get_usage", map[string]any{}, "billingState", "unavailable")
 	callToolOK(t, session, "pushman_get_status", map[string]any{}, "nickname", "Build Mac")
 	callToolOK(t, session, "pushman_doctor", map[string]any{}, "ok", true)
 }
