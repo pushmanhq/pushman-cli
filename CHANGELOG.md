@@ -4,6 +4,27 @@ Notable changes to Pushman CLI will be documented here. This project follows [Se
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-27
+
+### Added
+
+- Build an isolated `pushman-dev` / `pdev` command for contributing, with a separate credential namespace and local API default.
+- Display optional plan and billing status when supplied by the server, without enabling purchases or exposing provider identifiers.
+
+### Fixed
+
+- Show message revisions newest first in CLI text output while preserving API/MCP ordering and revision numbers.
+- Accept additive API response fields for forward-compatible clients.
+
+### Changed
+
+- Use the canonical `github.com/pushmanhq/pushman-cli` Go installation path and link supported product documentation from the product hub.
+- Update dependencies and the MCP SDK.
+
+This release includes the repository/module migration from the earlier `v0.2.0` tag,
+whose release archives were not published. Existing tags are preserved; use `v0.3.0`
+for a complete checksummed release and the matching Homebrew update.
+
 ## [0.2.0] - 2026-08-27
 
 ### Changed
@@ -56,7 +77,8 @@ Notable changes to Pushman CLI will be documented here. This project follows [Se
 - Stable JSON output and environment-only automation credentials.
 - Checksummed macOS, Linux, and Windows archives with GitHub artifact attestations.
 
-[Unreleased]: https://github.com/pushmanhq/pushman-cli/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/pushmanhq/pushman-cli/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/pushmanhq/pushman-cli/compare/v0.1.1...v0.3.0
 [0.2.0]: https://github.com/pushmanhq/pushman-cli/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/pushmanhq/pushman-cli/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/pushmanhq/pushman-cli/compare/v0.1.0-beta.4...v0.1.0
