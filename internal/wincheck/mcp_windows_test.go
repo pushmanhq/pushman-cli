@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os/exec"
+	"syscall"
 	"testing"
 	"time"
 
@@ -26,6 +27,7 @@ type processSession struct {
 func openProcessSession(t *testing.T, apiURL string) *processSession {
 	t.Helper()
 	command := cliCommand(t, apiURL, "mcp")
+	command.SysProcAttr = &syscall.SysProcAttr{CreationFlags: newHiddenConsole, HideWindow: true}
 	stdin, err := command.StdinPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -62,6 +64,11 @@ func (p *processSession) close(t *testing.T) {
 	if p.diagnostics.Len() != 0 {
 		t.Error("MCP emitted unexpected routine diagnostics")
 	}
+	p.assertProtocol(t)
+}
+
+func (p *processSession) assertProtocol(t *testing.T) {
+	t.Helper()
 	for _, frame := range bytes.Split(p.protocol.Bytes(), []byte{'\n'}) {
 		if len(bytes.TrimSpace(frame)) == 0 {
 			continue
@@ -73,6 +80,29 @@ func (p *processSession) close(t *testing.T) {
 			t.Error("MCP stdout contained non-protocol output")
 		}
 	}
+}
+
+func TestWindowsMCPProcessInterrupt(t *testing.T) {
+	server, _ := pushServer(t)
+	process := openProcessSession(t, server.URL)
+	t.Cleanup(func() {
+		process.session.Close()
+		if process.command.ProcessState == nil {
+			process.command.Process.Kill()
+			process.command.Wait()
+		}
+	})
+	if err := interruptOwnedProcess(t, process.command); err != nil {
+		t.Fatalf("could not interrupt owned MCP process: %v", err)
+	}
+	err := process.command.Wait()
+	process.session.Close()
+	// MCP treats cancellation as clean server shutdown, unlike an interrupted
+	// login command. Preserve that existing quiet exit-0 contract.
+	if err != nil || process.diagnostics.Len() != 0 {
+		t.Fatal("native MCP console interrupt did not shut down cleanly")
+	}
+	process.assertProtocol(t)
 }
 
 func TestWindowsMCPExecutableAndRestart(t *testing.T) {

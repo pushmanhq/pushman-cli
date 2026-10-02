@@ -30,6 +30,8 @@ For every implementation/release record include commit and CI URL, runner image,
 | Published ARM64 ZIP | `NOT RUN` locally; no local ARM64 hardware. | Native ARM64 CI source and pinned-archive results, then claimed user journeys. |
 | Browser/account/iPhone | Injected browser failure and mocked approval/denial/expiry/slow-down/cancellation/store failure pass. | Actual login/pair/send/logout with available iPhone app access and synthetic notification content. |
 
+The first native CI run found that Windows PowerShell 5.1 prepended a UTF-8 BOM with only `$OutputEncoding` set to BOM-free UTF-8. Local behavior differed. The console example now aligns console input encoding for the operation and restores both settings; the process test uses an owned hidden console so it cannot alter the runner's shared console. Pushman's BOM/content policy is unchanged.
+
 The older v0.1.1 x64 archive passed its SHA-256 comparison but could not be provenance-verified under the current canonical repository (attestation lookup returned 404). The probe stopped before extraction/execution; it is not a verified rollback candidate. The v0.3.0 archive passed both checks.
 
 ## Support and release decisions

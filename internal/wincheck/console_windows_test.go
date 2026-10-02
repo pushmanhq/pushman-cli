@@ -96,11 +96,7 @@ func TestWindowsNativeLoginInterrupt(t *testing.T) {
 		command.Wait()
 		t.Fatal("no-browser login did not reach its synthetic challenge")
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-	defer cancel()
-	helper := exec.CommandContext(ctx, os.Args[0], "-test.run=^$")
-	helper.Env = append(os.Environ(), fmt.Sprintf("PUSHMAN_WIN_CONSOLE_HELPER=%d", command.Process.Pid))
-	if err := helper.Run(); err != nil {
+	if err := interruptOwnedProcess(t, command); err != nil {
 		command.Process.Kill()
 		command.Wait()
 		t.Fatalf("could not direct a console event to the test child: %v", err)
@@ -109,6 +105,15 @@ func TestWindowsNativeLoginInterrupt(t *testing.T) {
 	if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 130 || !strings.Contains(stderr.String(), "context canceled") {
 		t.Fatal("native console interrupt did not stop login with exit 130")
 	}
+}
+
+func interruptOwnedProcess(t *testing.T, command *exec.Cmd) error {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	helper := exec.CommandContext(ctx, os.Args[0], "-test.run=^$")
+	helper.Env = append(os.Environ(), fmt.Sprintf("PUSHMAN_WIN_CONSOLE_HELPER=%d", command.Process.Pid))
+	return helper.Run()
 }
 
 func TestWindowsShellExitCodes(t *testing.T) {

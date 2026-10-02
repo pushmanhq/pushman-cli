@@ -159,6 +159,9 @@ func powerShellCommand(t *testing.T, shell, script, apiURL string) *exec.Cmd {
 	t.Cleanup(cancel)
 	command := exec.CommandContext(ctx, shell, "-NoProfile", "-NonInteractive", "-EncodedCommand", base64.StdEncoding.EncodeToString(data))
 	command.Env = isolatedEnvironment(apiURL)
+	// Give scoped console-encoding changes an owned hidden console. Changing
+	// the test runner's inherited console would affect unrelated processes.
+	command.SysProcAttr = &syscall.SysProcAttr{CreationFlags: newHiddenConsole, HideWindow: true}
 	return command
 }
 
@@ -172,8 +175,11 @@ func TestWindowsPowerShellUTF8AndQuoting(t *testing.T) {
 				t.Skipf("NOT RUN: %s unavailable", shell)
 			}
 			server, requests := pushServer(t)
-			script := "$ProgressPreference = 'SilentlyContinue'\n$OutputEncoding = [System.Text.UTF8Encoding]::new($false)\n" +
-				psLiteral(body) + " | & " + psLiteral(executable) + " push - --json --title " + psLiteral(title) + " --url " + psLiteral(targetURL) + "\nexit $LASTEXITCODE"
+			script := "$ProgressPreference = 'SilentlyContinue'\n" +
+				"$previousInputEncoding = [Console]::InputEncoding\n$previousOutputEncoding = $OutputEncoding\n" +
+				"try {\n[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false)\n$OutputEncoding = [System.Text.UTF8Encoding]::new($false)\n" +
+				psLiteral(body) + " | & " + psLiteral(executable) + " push - --json --title " + psLiteral(title) + " --url " + psLiteral(targetURL) +
+				"\n$resultCode = $LASTEXITCODE\n} finally {\n$OutputEncoding = $previousOutputEncoding\n[Console]::InputEncoding = $previousInputEncoding\n}\nexit $resultCode"
 			stdout, stderr, code := runCommand(t, powerShellCommand(t, shell, script, server.URL))
 			assertAcceptedJSON(t, stdout, stderr, code)
 			select {

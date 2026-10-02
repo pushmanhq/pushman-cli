@@ -125,20 +125,23 @@ If you want to revoke this CLI's authorization, run `pushman logout` **before** 
 
 ### Windows input and execution sessions
 
-PowerShell 7 uses UTF-8 for native pipelines. Windows PowerShell 5.1 needs an explicit `$OutputEncoding` when sending non-ASCII pipeline text to a native program. Change it only for the current operation and restore it afterward:
+PowerShell 7 uses UTF-8 for native pipelines. In a Windows PowerShell 5.1 console, align `$OutputEncoding` and `[Console]::InputEncoding` to BOM-free UTF-8 for the operation, then restore both. Setting only `$OutputEncoding` produced an additional UTF-8 BOM on the Windows CI images, which Pushman correctly retains as body content:
 
 ```powershell
 $previousOutputEncoding = $OutputEncoding
+$previousInputEncoding = [Console]::InputEncoding
 try {
+    [Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false)
     $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
     'Example notification 한글 😀 "quotes" $dollar & ampersand' | pushman.exe push - --json
     if ($LASTEXITCODE -ne 0) { throw 'Pushman failed' }
 } finally {
     $OutputEncoding = $previousOutputEncoding
+    [Console]::InputEncoding = $previousInputEncoding
 }
 ```
 
-Run a send example only when you intend to send that notification after authorization. Piping the body also avoids legacy native-argument quoting differences for embedded quotes. Quote URL arguments containing `&`, and use single-quoted PowerShell literals when dollar signs/backticks should remain literal.
+This example requires a console. For hosts without one, use PowerShell 7 or pass a UTF-8 file through `cmd.exe` as below. Do not put these settings in a profile or change the system code page. Run a send example only when you intend to send that notification after authorization. Piping the body also avoids legacy native-argument quoting differences for embedded quotes. Quote URL arguments containing `&`, and use single-quoted PowerShell literals when dollar signs/backticks should remain literal.
 
 For `cmd.exe`, write a UTF-8 body file without a BOM and redirect its bytes:
 
