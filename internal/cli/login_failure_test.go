@@ -29,3 +29,31 @@ func TestLoginBrowserFailureKeepsManualApproval(t *testing.T) {
 		t.Fatal("browser diagnostic leaked onto stdout")
 	}
 }
+
+func TestLoginSkipsBrowserWhenDisabledOrRedirected(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		args       []string
+		isTerminal bool
+	}{
+		{name: "explicit no-browser", args: []string{"login", "--no-browser"}, isTerminal: true},
+		{name: "noninteractive", args: []string{"login"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			out, errOut := new(bytes.Buffer), new(bytes.Buffer)
+			command := New(Dependencies{
+				Out: out, ErrOut: errOut, IsTerminal: func() bool { return test.isTerminal },
+				Hostname: func() (string, error) { return "Test sender", nil },
+				Service:  stubService{loginResult: PairResult{Nickname: "Test sender"}},
+				OpenBrowser: func(string) error {
+					t.Error("disabled/noninteractive login opened a browser")
+					return nil
+				},
+			})
+			command.SetArgs(test.args)
+			if err := command.Execute(); err != nil || !strings.Contains(out.String(), "Verify at:") || errOut.Len() != 0 {
+				t.Fatal("disabled/noninteractive browser lost the manual approval path")
+			}
+		})
+	}
+}

@@ -103,6 +103,20 @@ func TestLoginSlowDownAndStoreFailure(t *testing.T) {
 	}
 }
 
+func TestLoginTransportFailureLeavesNoCredential(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	server.Close()
+	store := new(authorizationStore)
+	service, err := New(server.URL+"/v1", store, "", server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = service.Login(context.Background(), cli.LoginRequest{Platform: "windows", SuggestedName: "Test sender"})
+	if err == nil || store.setCalls != 0 || store.token != "" {
+		t.Fatal("failed login transport left a credential")
+	}
+}
+
 func TestLogoutKeepsCredentialUntilServerRevocation(t *testing.T) {
 	for _, test := range []struct {
 		name      string

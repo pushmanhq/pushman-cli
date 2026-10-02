@@ -179,12 +179,32 @@ func TestWindowsPowerShellUTF8AndQuoting(t *testing.T) {
 			select {
 			case got := <-requests:
 				if got != (capturedPush{body, title, targetURL}) {
-					t.Fatal("shell changed the Unicode body, title, or quoted URL")
+					// All fields come from this fixed synthetic fixture, so escaped
+					// mismatches can diagnose shell differences without private data.
+					t.Fatalf("shell changed synthetic fields: body=%q title=%q URL=%q", got.Body, got.Title, got.URL)
 				}
 			default:
 				t.Fatal("shell did not reach the loopback service")
 			}
 		})
+	}
+}
+
+func TestWindowsProcessServiceFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/messages" {
+			t.Error("unexpected loopback service failure request")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		io.WriteString(w, `{"code":"service_unavailable","message":"synthetic service failure"}`)
+	}))
+	defer server.Close()
+	command := cliCommand(t, server.URL, "push", "-", "--json")
+	command.Stdin = strings.NewReader("synthetic failure\r\n")
+	stdout, stderr, code := runCommand(t, command)
+	if code != 1 || stdout != "" || stderr == "" {
+		t.Fatalf("service failure contract: exit=%d stdoutEmpty=%v stderrEmpty=%v", code, stdout == "", stderr == "")
 	}
 }
 
