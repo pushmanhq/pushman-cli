@@ -116,11 +116,14 @@ func readBody(stdin io.Reader, stdinIsTerminal bool, args []string) (string, err
 		return "", usagef("provide a notification body")
 	}
 	const maxBodyBytes = 4096 * utf8.UTFMax
-	data, err := io.ReadAll(io.LimitReader(stdin, maxBodyBytes+1))
+	// A shell may append LF or CRLF to a body already at the scalar limit.
+	// Include that removable suffix while keeping oversized streams bounded.
+	const maxStdinBytes = maxBodyBytes + len("\r\n")
+	data, err := io.ReadAll(io.LimitReader(stdin, int64(maxStdinBytes)+1))
 	if err != nil {
 		return "", fmt.Errorf("read body from standard input: %w", err)
 	}
-	if len(data) > maxBodyBytes {
+	if len(data) > maxStdinBytes {
 		return "", usagef("body must not exceed 4096 Unicode scalar values")
 	}
 	if !utf8.Valid(data) {

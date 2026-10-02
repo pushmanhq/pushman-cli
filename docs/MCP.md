@@ -43,6 +43,40 @@ Clients that accept the common `mcpServers` JSON shape can launch Pushman like t
 
 Replace the example command with the result of `command -v pushman`. An absolute path is recommended for desktop apps because their executable search path can differ from an interactive terminal. On Intel macOS Homebrew commonly uses `/usr/local/bin/pushman`; Linux locations vary.
 
+On Windows, resolve the native executable in PowerShell:
+
+```powershell
+(Get-Command pushman.exe).Source
+```
+
+Use that absolute `.exe` path as `command`, with `args: ["mcp"]`. JSON requires doubled backslashes; spaces and non-ASCII characters stay inside the same string:
+
+```json
+{
+  "mcpServers": {
+    "pushman": {
+      "command": "C:\\Users\\you\\AppData\\Local\\Programs\\Pushman\\pushman.exe",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+You can generate correctly escaped JSON without manually editing the path:
+
+```powershell
+@{
+    mcpServers = @{
+        pushman = @{
+            command = (Get-Command pushman.exe).Source
+            args = @('mcp')
+        }
+    }
+} | ConvertTo-Json -Depth 4
+```
+
+Restart desktop clients after a user PATH change, and run the host under the same Windows identity/session that authorized the CLI. Otherwise, an absolute path fixes executable discovery but does not grant access to another account's Credential Manager. Keep tokens out of this configuration. See [Windows installation and session guidance](INSTALL.md#windows-zip-installation).
+
 The server is a long-running stdio subprocess. Do not start it manually and expect a terminal interface: a compatible MCP client launches it and exchanges protocol frames. Stdout is reserved exclusively for MCP; Pushman emits no routine diagnostic logs or notification content on stderr.
 
 ## Tools and permissions
@@ -93,6 +127,8 @@ If the client reports that `pushman` cannot be found, configure the absolute pat
 
 Closing the client's stdio connection stops the server cleanly. `Ctrl-C` or client cancellation also stops it. Protocol or tool errors are returned to the MCP client; Pushman does not upload CLI crash reports or MCP telemetry.
 
+Before replacing a Windows ZIP-installed executable, have the desktop client stop its Pushman subprocess. Start it again after checking the replacement version. See the [Windows verification record](WINDOWS_VERIFICATION.md) for automated process coverage and desktop-host acceptance status.
+
 ## Development verification
 
 ```sh
@@ -103,3 +139,5 @@ make build-dev
 ```
 
 Tests negotiate with the official MCP Go SDK client, verify all schemas and safety annotations, exercise successful and failed tool calls, and run the Cobra command in a separate process to prove protocol-only stdout and clean EOF shutdown.
+
+On Windows, `go test -v ./internal/wincheck` builds the real main package into a path with spaces and Korean characters, then exercises the official SDK client against that executable and a loopback API. It verifies negotiation, tool schemas, success/error, send-only authorization, protocol-only stdout, EOF, restart, and cancellation of an in-flight API call. This does not substitute for acceptance in a specific desktop host.
