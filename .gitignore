@@ -1,6 +1,7 @@
 /bin/
 /.bin/
 /dist/
+/windows-dist/
 coverage.out
 *.test
 .DS_Store
