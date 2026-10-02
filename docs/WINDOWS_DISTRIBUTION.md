@@ -2,6 +2,8 @@
 
 The Windows channel uses Inno Setup 6.7.3 with a pinned bootstrap checksum, per-user installation, native system appearance, a stable app identity, and owned PATH registration. The setup assets are architecture-specific; users need neither Go nor elevation. Signing is deferred; no signing credentials or integration are required by these workflows.
 
+Manifest-validation jobs prepare WinGet 1.29.380 with Microsoft's pinned `Microsoft.WinGet.Client` module and `Repair-WinGetPackageManager` when the disposable runner lacks App Installer. This is a CI prerequisite, not part of the Pushman installer. Microsoft schemas and native `winget validate` remain mandatory.
+
 ## Release gates
 
 Push a new immutable `v<major>.<minor>.<patch>` tag after review and merge, or dispatch Release with an existing unpublished tag. Published releases cannot be rebuilt or have their assets replaced. A correction gets a new version.

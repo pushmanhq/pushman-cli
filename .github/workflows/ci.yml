@@ -163,7 +163,7 @@ jobs:
     name: Validate WinGet manifests
     needs: portability
     runs-on: windows-11-arm
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -173,6 +173,11 @@ jobs:
           pattern: windows-candidate-*
           path: windows-dist
           merge-multiple: true
+      - name: Prepare pinned Microsoft WinGet client
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .\scripts\ensure-winget.ps1
       - name: Validate manifests against Microsoft schemas and WinGet
         shell: pwsh
         run: .\scripts\new-winget-manifests.ps1 -Tag v0.0.1-ci -InstallerDirectory windows-dist -RequireWinget
