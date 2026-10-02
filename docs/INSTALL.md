@@ -84,3 +84,7 @@ pushman status
 `pushman login --no-browser` prints a code and URL without launching a browser, which is useful over SSH. `pushman pair` remains available when you prefer approval in the signed-in iPhone app. Both methods create the same account-scoped CLI authorization.
 
 Run `pushman doctor` if authorization, local credential storage, or service connectivity fails. Never paste a CLI credential, `PUSHMAN_TOKEN`, OAuth assertion, or unredacted diagnostic output into an issue or agent conversation. Follow [SECURITY.md](../SECURITY.md) for suspected vulnerabilities and [SUPPORT.md](../SUPPORT.md) for bug-report guidance.
+
+## Windows support roadmap
+
+Windows release builds and portability CI are already configured. The [Windows support plan](WINDOWS_SUPPORT_PLAN.md) tracks remaining shell, credential, MCP, packaging, and validation work; it does not change current installation or update behavior.
