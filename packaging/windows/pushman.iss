@@ -37,6 +37,8 @@ DisableDirPage=auto
 WizardStyle=modern dynamic windows11
 WizardSmallImageFile=..\..\docs\assets\pushman-icon.png
 WizardSmallImageFileDynamicDark=..\..\docs\assets\pushman-icon.png
+WizardImageFile=..\..\docs\assets\pushman-icon.png
+WizardImageFileDynamicDark=..\..\docs\assets\pushman-icon.png
 LicenseFile=..\..\LICENSE
 OutputDir={#OutputDirectory}
 OutputBaseFilename=pushman_{#Version}_windows_{#Architecture}_setup
@@ -262,8 +264,19 @@ begin
   if CurUninstallStep = usPostUninstall then RemoveOwnedPath;
 end;
 
-procedure InitializeWizard;
+procedure CurPageChanged(CurPageID: Integer);
+var
+  BrandSize: Integer;
 begin
-  WizardForm.FinishedHeadingLabel.Caption := CustomMessage('FinishedHeading');
-  WizardForm.FinishedLabel.Caption := CustomMessage('FinishedLabel');
+  if CurPageID = wpFinished then begin
+    { Setup replaces FinishedLabel while preparing the page. Apply our
+      instructions after that, and keep the square brand image undistorted. }
+    WizardForm.FinishedHeadingLabel.Caption := CustomMessage('FinishedHeading');
+    WizardForm.FinishedLabel.Caption := CustomMessage('FinishedLabel');
+    BrandSize := ScaleX(140);
+    WizardForm.WizardBitmapImage2.SetBounds(
+      (WizardForm.FinishedHeadingLabel.Left - BrandSize) div 2,
+      (WizardForm.FinishedPage.Height - BrandSize) div 2,
+      BrandSize, BrandSize);
+  end;
 end;
