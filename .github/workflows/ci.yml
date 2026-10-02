@@ -141,7 +141,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $arch = if ('${{ matrix.os }}' -eq 'windows-11-arm') { 'arm64' } else { 'x86_64' }
-          .\scripts\test-windows-release.ps1 -Tag v0.3.0 -Architecture $arch -CandidateExecutable .\.bin\pushman.exe
+          .\scripts\test-windows-release.ps1 -Tag v0.4.2 -Architecture $arch -CandidateExecutable .\.bin\pushman.exe
       - name: Qualify Windows installer lifecycle
         if: runner.os == 'Windows'
         shell: pwsh

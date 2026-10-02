@@ -32,6 +32,10 @@ The generator uses `PushmanHQ.Pushman`, official pinned Microsoft schemas, user 
 
 Install Microsoft's manifest tool with `winget install --id Microsoft.WingetCreate --exact`. Authenticate it with `wingetcreate token --store` using its browser flow; avoid putting tokens in command arguments or scripts. Submit the generated version directory with `wingetcreate submit $manifest.Directory`. Alternatively, copy the verified bundle's `manifests/p/PushmanHQ/Pushman/<version>` directory into a fork of `microsoft/winget-pkgs` and open a focused PR.
 
+Reuse an existing fork for other packages, with a separate checkout and package/version branch for each submission. Keep the fork's default branch unchanged. Each PR should add one package version and its three YAML manifests. If a correction ships while the first submission is open, update that same PR to the new verified version rather than submitting two versions together.
+
+Microsoft may require the contributing GitHub account owner to accept its [Contributor License Agreement](https://opensource.microsoft.com/cla/). The owner must review and accept that agreement personally; it is separate from Authenticode publisher signing. Record any required agreement and outstanding provider checks before claiming catalog acceptance. Native `winget validate` checks manifests without installing them; if local-manifest installation is disabled, record that installation as `NOT RUN` and use the provider's installation results without changing host security policy.
+
 Record the catalog PR, resolve its installation/validation results, and wait for acceptance. Then check `winget show --id PushmanHQ.Pushman --exact`, and verify clean install, detection, upgrade, and uninstall before documenting catalog availability. No new repository token is needed for building or publishing the submission bundle.
 
 ## Ownership and rollback
