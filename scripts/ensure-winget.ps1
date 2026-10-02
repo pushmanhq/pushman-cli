@@ -8,7 +8,9 @@ if (-not $winget) {
     # signed App Installer for this account; no machine policy changes.
     Install-Module Microsoft.WinGet.Client -Repository PSGallery -RequiredVersion $version -Scope CurrentUser -Force
     Import-Module Microsoft.WinGet.Client -RequiredVersion $version
-    Repair-WinGetPackageManager -Version $version -Force | Out-Null
+    # Exact versions are passed to the GitHub release API as tag names; the
+    # wildcard example in Microsoft's help resolves its own v-prefixed tag.
+    Repair-WinGetPackageManager -Version "v$version" -Force | Out-Null
     $windowsApps = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps'
     $env:Path = "$windowsApps;$env:Path"
     $winget = Get-Command winget.exe -ErrorAction Stop
