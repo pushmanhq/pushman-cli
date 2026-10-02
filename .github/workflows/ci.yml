@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  attestations: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -46,7 +47,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [macos-latest, windows-latest, windows-11-arm]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
@@ -56,6 +57,70 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Test
+        if: runner.os != 'Windows'
         run: go test ./...
+      - name: Record native Windows environment
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          go version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $arch = go env GOARCH
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $expected = if ('${{ matrix.os }}' -eq 'windows-11-arm') { 'arm64' } else { 'amd64' }
+          if ($arch -ne $expected) { throw "Expected native $expected Go, got $arch" }
+          $expectedOS = if ($expected -eq 'arm64') { 'Arm64' } else { 'X64' }
+          if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne $expectedOS) {
+            throw "Expected native $expectedOS Windows"
+          }
+          [pscustomobject]@{
+            Image = $env:ImageOS
+            ImageVersion = $env:ImageVersion
+            Windows = [System.Environment]::OSVersion.Version
+            OSArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+            GoArchitecture = $arch
+            PowerShell = $PSVersionTable.PSVersion
+          } | Format-List
+      - name: Native Windows tests (credentials, shells, console, and MCP)
+        if: runner.os == 'Windows'
+        env:
+          PUSHMAN_TEST_NATIVE_KEYRING: '1'
+        run: go test -v ./...
+      - name: Vet
+        run: go vet ./...
       - name: Build
+        if: runner.os != 'Windows'
         run: go build -trimpath ./cmd/pushman
+      - name: Build Windows executable
+        if: runner.os == 'Windows'
+        run: go build -trimpath -o .bin/pushman.exe ./cmd/pushman
+      - name: PowerShell 7 smoke
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\scripts\windows-smoke.ps1 -Executable .\.bin\pushman.exe
+      - name: Windows PowerShell 5.1 smoke
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: .\scripts\windows-smoke.ps1 -Executable .\.bin\pushman.exe
+      - name: cmd smoke
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          ver
+          .bin\pushman.exe version
+          if errorlevel 1 exit /b 1
+          .bin\pushman.exe help
+          if errorlevel 1 exit /b 1
+          .bin\pushman.exe --not-a-pushman-flag
+          if %ERRORLEVEL% NEQ 2 exit /b 1
+          .bin\pushman.exe self-update
+          if %ERRORLEVEL% NEQ 1 exit /b 1
+          exit /b 0
+      - name: Verify and execute the published Windows ZIP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $arch = if ('${{ matrix.os }}' -eq 'windows-11-arm') { 'arm64' } else { 'x86_64' }
+          .\scripts\test-windows-release.ps1 -Tag v0.3.0 -Architecture $arch -CandidateExecutable .\.bin\pushman.exe
