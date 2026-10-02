@@ -60,7 +60,7 @@ To revoke authorization, run `pushman logout` before uninstalling. Then remove *
 
 ### WinGet
 
-Release automation generates a validated `pushman_<version>_winget.zip` submission bundle from the final x64/ARM64 installer files. A generated bundle does not mean the package is available in WinGet. The first catalog submission and acceptance are still pending; until `winget show --id PushmanHQ.Pushman --exact` finds the package, use the verified installer download. Once accepted, the catalog supports `winget install --id PushmanHQ.Pushman --exact --scope user`, `winget upgrade --id PushmanHQ.Pushman --exact`, and `winget uninstall --id PushmanHQ.Pushman --exact`.
+Release automation generates a validated `pushman_<version>_winget.zip` submission bundle from the final x64/ARM64 installer files. A generated bundle does not mean the package is available in WinGet. The [first catalog submission](https://github.com/microsoft/winget-pkgs/pull/445791) is under review; until `winget show --id PushmanHQ.Pushman --exact` finds the package, use the verified installer download. Once accepted, the catalog supports `winget install --id PushmanHQ.Pushman --exact --scope user`, `winget upgrade --id PushmanHQ.Pushman --exact`, and `winget uninstall --id PushmanHQ.Pushman --exact`.
 
 ## Go (developers)
 
@@ -99,7 +99,7 @@ Install the [GitHub CLI](https://cli.github.com/) first and confirm `gh --versio
 
 ```powershell
 $ErrorActionPreference = 'Stop'
-$tag = 'v0.3.0' # Replace with the release you selected.
+$tag = 'v0.4.2' # Replace with the release you selected.
 $arch = 'x86_64' # Use 'arm64' on Windows ARM64.
 $version = $tag.Substring(1)
 $asset = "pushman_${version}_windows_${arch}.zip"
