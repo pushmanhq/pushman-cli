@@ -11,38 +11,161 @@ on:
         type: string
 
 permissions:
-  contents: write
-  id-token: write
-  attestations: write
-  artifact-metadata: write
+  contents: read
+  attestations: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
-  release:
+  resolve:
     if: github.event.repository.name == 'pushman-cli'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.source.outputs.tag }}
+      commit: ${{ steps.source.outputs.commit }}
     steps:
+      - name: Validate tag syntax
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          printf '%s\n' "$RELEASE_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+      - name: Resolve immutable source and refuse published releases
+        id: source
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+          published=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate \
+            --jq ".[] | select(.tag_name == \"$RELEASE_TAG\") | .draft")
+          if printf '%s\n' "$published" | grep -qx false; then
+            echo 'Release is already public; use a new tag instead of replacing its assets' >&2
+            exit 1
+          fi
+          printf 'tag=%s\ncommit=%s\n' "$RELEASE_TAG" "$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  quality:
+    needs: resolve
+    uses: ./.github/workflows/ci.yml
+    with:
+      source_ref: ${{ needs.resolve.outputs.commit }}
+
+  windows-installers:
+    needs: [resolve, quality]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            arch: x86_64
+          - os: windows-11-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.commit }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           cache: true
-      - name: Validate release tag
+      - name: Build and qualify final installer bytes
+        shell: pwsh
         env:
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+          RELEASE_COMMIT: ${{ needs.resolve.outputs.commit }}
+          RELEASE_ARCH: ${{ matrix.arch }}
+          CGO_ENABLED: '0'
         run: |
-          printf '%s\n' "$RELEASE_TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'
-          test "$(git describe --exact-match --tags HEAD)" = "$RELEASE_TAG"
-      - name: Test release commit
-        run: go test -race ./...
-      - name: Build and publish release
+          $version = $env:RELEASE_TAG.Substring(1)
+          $date = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
+          go build -trimpath -ldflags "-s -w -X main.version=$version -X main.commit=$env:RELEASE_COMMIT -X main.date=$date" -o .bin/pushman.exe ./cmd/pushman
+          if ($LASTEXITCODE -ne 0) { throw 'Release payload build failed' }
+          $compiler = .\scripts\ensure-inno-setup.ps1
+          $candidate = .\scripts\build-windows-installer.ps1 -Version $version -Architecture $env:RELEASE_ARCH -Executable .bin\pushman.exe -Compiler $compiler
+          .\scripts\test-windows-installer.ps1 -Installer $candidate.Installer -Executable .bin\pushman.exe -Version $version -Architecture $env:RELEASE_ARCH -Compiler $compiler
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-installer-${{ matrix.arch }}
+          path: dist/windows/*_setup.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  winget-bundle:
+    needs: [resolve, windows-installers]
+    runs-on: windows-11-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.resolve.outputs.commit }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: windows-installer-*
+          path: windows-dist
+          merge-multiple: true
+      - name: Prepare pinned Microsoft WinGet client
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .\scripts\ensure-winget.ps1
+      - name: Generate and validate manifests from qualified installers
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          .\scripts\new-winget-manifests.ps1 -Tag $env:RELEASE_TAG -InstallerDirectory windows-dist -RequireWinget
+          $version = $env:RELEASE_TAG.Substring(1)
+          Compress-Archive -Path dist\winget\manifests -DestinationPath "windows-dist\pushman_${version}_winget.zip"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: winget-bundle
+          path: windows-dist/*_winget.zip
+          if-no-files-found: error
+
+  publish:
+    needs: [resolve, quality, windows-installers, winget-bundle]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.resolve.outputs.tag }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: windows-installer-*
+          path: windows-dist
+          merge-multiple: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: winget-bundle
+          path: windows-dist
+      - name: Check source did not move
+        env:
+          RELEASE_COMMIT: ${{ needs.resolve.outputs.commit }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$RELEASE_COMMIT"
+      - name: Build draft release
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
@@ -50,15 +173,31 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Attest released archives
+          GORELEASER_CURRENT_TAG: ${{ needs.resolve.outputs.tag }}
+      - name: Verify both installers are checksummed
+        env:
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          version=${RELEASE_TAG#v}
+          for arch in x86_64 arm64; do
+            name="pushman_${version}_windows_${arch}_setup.exe"
+            test "$(awk -v name="$name" '$2 == name {count++} END {print count+0}' dist/checksums.txt)" = 1
+            awk -v name="$name" '$2 == name' dist/checksums.txt | (cd windows-dist && sha256sum -c -)
+          done
+      - name: Attest final release assets
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-checksums: dist/checksums.txt
+      - name: Publish qualified and attested draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+        run: gh release edit "$RELEASE_TAG" --draft=false
       - name: Update Homebrew tap
         if: env.TAP_DEPLOY_KEY != ''
         env:
           TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
         run: |
           VERSION="${RELEASE_TAG#v}"
           ARM64_MACOS_SHA=$(sha256sum "dist/pushman_${VERSION}_macOS_arm64.tar.gz" | awk '{print $1}')
