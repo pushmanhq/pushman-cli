@@ -17,4 +17,8 @@ $result = Invoke-PackagingProcess $winget.Source @('--version')
 if ($result.ExitCode -ne 0 -or $result.Stdout.Trim() -ne "v$version") {
     throw "Expected working WinGet $version for reproducible manifest validation"
 }
+if ($env:GITHUB_PATH) {
+    # Each Actions step starts a fresh shell; persist discovery to later steps.
+    [IO.File]::AppendAllText($env:GITHUB_PATH, (Split-Path $winget.Source -Parent) + "`n", [Text.UTF8Encoding]::new($false))
+}
 $winget.Source
