@@ -36,6 +36,7 @@ AllowNoIcons=yes
 DisableDirPage=auto
 WizardStyle=modern dynamic windows11
 WizardSmallImageFile=..\..\docs\assets\pushman-icon.png
+WizardSmallImageFileDynamicDark=..\..\docs\assets\pushman-icon.png
 LicenseFile=..\..\LICENSE
 OutputDir={#OutputDirectory}
 OutputBaseFilename=pushman_{#Version}_windows_{#Architecture}_setup
