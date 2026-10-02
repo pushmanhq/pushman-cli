@@ -75,6 +75,22 @@ The suite writes only a unique `com.pushman.test.*` entry with a synthetic value
 
 CI keeps Linux race/generated-client/script/vulnerability checks, macOS portability, and native Windows x64/ARM64 jobs. The Windows jobs record their image and native architecture and run credential/process tests, vet, an explicit `.exe` build, three-shell smoke, and checksum/provenance/version/help checks on the pinned published ZIP. Use the [verification record](docs/WINDOWS_VERIFICATION.md) for release and desktop-host evidence. A PowerShell script policy may disallow a local `.ps1` test wrapper; native Go tests and typed `.exe` commands do not require changing that policy.
 
+### Windows packaging
+
+Use PowerShell 7, native Go 1.27+, and pinned Inno Setup 6.7.3 to build an installer. The compiler bootstrap verifies the official download's SHA-256 and installs it for the current user. On a developer machine with Inno already installed, pass `-Compiler` to the builder. The installer source rejects other compiler versions.
+
+```powershell
+go build -trimpath -ldflags '-s -w -X main.version=0.0.1-ci -X main.credentialNamespace=installer-test' -o .bin/pushman.exe ./cmd/pushman
+if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
+$compiler = .\scripts\ensure-inno-setup.ps1
+$candidate = .\scripts\build-windows-installer.ps1 -Version 0.0.1-ci -Architecture x86_64 -Executable .bin\pushman.exe -Compiler $compiler
+.\scripts\test-windows-installer.ps1 -Installer $candidate.Installer -Executable .bin\pushman.exe -Version 0.0.1-ci -Architecture x86_64 -Compiler $compiler
+```
+
+Use `arm64` on native ARM64 Windows. Run lifecycle qualification on a disposable Windows account: it installs into an owned temporary directory, refuses an existing registered installation, and restores the exact user PATH value/type/existence in cleanup. It exercises real installation, repeat installation, update/rollback fixtures, PATH opt-out/preexisting entries, and removal while preserving unrelated files. It never logs in or sends a notification. CI runs both architectures and validates WinGet manifests. See [Windows distribution](docs/WINDOWS_DISTRIBUTION.md) for release gates and catalog submission.
+
+### Pull request checks
+
 Before submitting a pull request:
 
 ```sh

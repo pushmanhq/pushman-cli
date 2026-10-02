@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
+    inputs:
+      source_ref:
+        description: Exact commit to qualify for a release
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -19,6 +25,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
@@ -33,6 +41,14 @@ jobs:
         run: sh scripts/test-render-homebrew-formula.sh
       - name: Lint release scripts
         run: shellcheck scripts/render-homebrew-formula.sh scripts/test-render-homebrew-formula.sh
+      - name: Validate workflows
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - name: Validate release configuration
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          distribution: goreleaser
+          version: v2.17.1
+          args: check
       - name: Test
         run: go test -race -coverprofile=coverage.out ./...
       - name: Vet
@@ -49,9 +65,11 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest, windows-11-arm]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
@@ -93,7 +111,7 @@ jobs:
         run: go build -trimpath ./cmd/pushman
       - name: Build Windows executable
         if: runner.os == 'Windows'
-        run: go build -trimpath -o .bin/pushman.exe ./cmd/pushman
+        run: go build -trimpath -ldflags '-s -w -X main.version=0.0.1-ci' -o .bin/pushman.exe ./cmd/pushman
       - name: PowerShell 7 smoke
         if: runner.os == 'Windows'
         shell: pwsh
@@ -124,3 +142,37 @@ jobs:
         run: |
           $arch = if ('${{ matrix.os }}' -eq 'windows-11-arm') { 'arm64' } else { 'x86_64' }
           .\scripts\test-windows-release.ps1 -Tag v0.3.0 -Architecture $arch -CandidateExecutable .\.bin\pushman.exe
+      - name: Qualify Windows installer lifecycle
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $arch = if ('${{ matrix.os }}' -eq 'windows-11-arm') { 'arm64' } else { 'x86_64' }
+          $compiler = .\scripts\ensure-inno-setup.ps1
+          $candidate = .\scripts\build-windows-installer.ps1 -Version 0.0.1-ci -Architecture $arch -Executable .bin\pushman.exe -Compiler $compiler
+          .\scripts\test-windows-installer.ps1 -Installer $candidate.Installer -Executable .bin\pushman.exe -Version 0.0.1-ci -Architecture $arch -Compiler $compiler
+      - name: Save qualified Windows candidate
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-candidate-${{ matrix.os }}
+          path: dist/windows/*_setup.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  winget-manifests:
+    name: Validate WinGet manifests
+    needs: portability
+    runs-on: windows-11-arm
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_ref || github.ref }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: windows-candidate-*
+          path: windows-dist
+          merge-multiple: true
+      - name: Validate manifests against Microsoft schemas and WinGet
+        shell: pwsh
+        run: .\scripts\new-winget-manifests.ps1 -Tag v0.0.1-ci -InstallerDirectory windows-dist -RequireWinget

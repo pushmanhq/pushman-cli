@@ -38,9 +38,16 @@ archives:
 
 checksum:
   name_template: checksums.txt
+  extra_files:
+    - glob: windows-dist/*_setup.exe
+    - glob: windows-dist/*_winget.zip
 
 changelog:
   use: github-native
 
 release:
   prerelease: auto
+  draft: true
+  extra_files:
+    - glob: windows-dist/*_setup.exe
+    - glob: windows-dist/*_winget.zip

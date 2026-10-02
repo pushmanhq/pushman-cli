@@ -1,6 +1,6 @@
 # Installing Pushman CLI
 
-Homebrew is the recommended installation method on macOS and Linux. Go and verified release archives are supported when Homebrew is unavailable or inappropriate for the environment.
+Homebrew is the recommended installation method on macOS and Linux. On Windows, choose the per-user installer from a release that includes `setup.exe` assets. Prebuilt downloads do not require Go. ZIP archives remain available for manual installation, and Go is an option for developers.
 
 Pushman for iPhone is preparing for its first public App Store release. Check the [product repository](https://github.com/pushmanhq/pushman) for app access. Installing the CLI does not install the iPhone app, create an account, authorize automatically, start a background service, or send a notification.
 
@@ -32,7 +32,37 @@ brew uninstall pushman
 
 Uninstalling without `pushman logout` removes the executable but intentionally leaves its Keychain or credential-store entry and server authorization intact. Reinstalling the CLI can use that authorization again.
 
-## Go
+## Windows installer
+
+Select your version on [GitHub Releases](https://github.com/pushmanhq/pushman-cli/releases). For releases containing installers, choose `pushman_<version>_windows_x86_64_setup.exe` for x64 or `pushman_<version>_windows_arm64_setup.exe` for Windows on ARM. v0.3.0 and older releases have ZIP archives only; use the [ZIP steps](#windows-zip-installation) for those versions.
+
+Download the matching installer and `checksums.txt`. Verify its SHA-256 against exactly one matching filename in that file, then verify GitHub build provenance before opening it. With PowerShell 7 and the [GitHub CLI](https://cli.github.com/):
+
+```powershell
+$ErrorActionPreference = 'Stop'
+$installer = (Resolve-Path '.\pushman_<version>_windows_<arch>_setup.exe').Path # Replace with your downloaded file.
+$name = Split-Path $installer -Leaf
+$pattern = '^([0-9a-fA-F]{64})\s+\*?' + [regex]::Escape($name) + '$'
+$entries = @(Get-Content .\checksums.txt | Where-Object { $_ -match $pattern })
+if ($entries.Count -ne 1) { throw 'Expected exactly one matching checksum' }
+if (($entries[0] -split '\s+')[0] -ne (Get-FileHash $installer -Algorithm SHA256).Hash) { throw 'Checksum mismatch' }
+gh attestation verify $installer -R pushmanhq/pushman-cli
+if ($LASTEXITCODE -ne 0) { throw 'Provenance verification failed' }
+```
+
+Open the verified installer. It installs for your Windows user into `%LOCALAPPDATA%\Programs\Pushman`, offers **Add Pushman to my user PATH**, and registers **Pushman CLI** in Settings → Apps → Installed apps. It follows the system appearance and includes English/Korean UI. Administrator access is unnecessary. Open a new terminal afterward, run `pushman version` and `pushman help`, then run `pushman login` when ready. Restart desktop MCP clients so they see the updated executable and PATH. If you deselect PATH registration, use the installed executable's absolute path.
+
+The current installer implementation is unsigned. SHA-256 and GitHub provenance are separate from Windows publisher signing; a verified download can still show an unknown-publisher or SmartScreen prompt. Publisher signing is planned separately.
+
+For an update, stop running CLI commands and Pushman subprocesses in MCP clients, verify the new installer, and run it with the same destination. It updates the existing Installed apps entry and remembers your PATH choice. Keep the previous verified installer outside the installation directory for rollback; verify it again and run it with the same destination to restore that version. `pushman self-update` handles Homebrew installations only.
+
+To revoke authorization, run `pushman logout` before uninstalling. Then remove **Pushman CLI** through Installed apps. The uninstaller removes its installed files and its own PATH entry, preserving unrelated files, preexisting PATH entries, and credentials. Uninstalling without logout retains authorization for a later reinstall. A ZIP installation in the same folder can be adopted by the installer, but manually added PATH entries remain yours to remove. Avoid keeping multiple installations on PATH; `Get-Command pushman.exe -All` shows which executable will run.
+
+### WinGet
+
+Release automation generates a validated `pushman_<version>_winget.zip` submission bundle from the final x64/ARM64 installer files. A generated bundle does not mean the package is available in WinGet. The first catalog submission and acceptance are still pending; until `winget show --id PushmanHQ.Pushman --exact` finds the package, use the verified installer download. Once accepted, the catalog supports `winget install --id PushmanHQ.Pushman --exact --scope user`, `winget upgrade --id PushmanHQ.Pushman --exact`, and `winget uninstall --id PushmanHQ.Pushman --exact`.
+
+## Go (developers)
 
 Go 1.27 or newer can install the latest tagged version from source:
 
@@ -117,7 +147,7 @@ Open a new terminal and restart desktop MCP clients afterward. `Get-Command push
 
 For a ZIP installation, close running CLI commands and have MCP clients stop their Pushman subprocesses. Download the replacement ZIP into a new directory and repeat the checksum/provenance checks above. Keep the previous verified `pushman.exe` outside the installation directory, replace the installed executable with the newly verified one, then check its absolute-path `version` and `help`. If the new version cannot run, stop its processes and restore that previous verified executable. Windows does not allow replacing an executable while it is running.
 
-A Go installation updates with the original `go install` command. Windows `pushman self-update` deliberately refuses these installations; it does not manage ZIP files or Go installs. WinGet, Scoop, and MSI are not installation channels documented here.
+A Go installation updates with the original `go install` command. Windows `pushman self-update` deliberately refuses these installations; use the original installer or installation method. See [Windows installer](#windows-installer) for installer updates and [WinGet](#winget) for catalog availability. Scoop and MSI are not offered.
 
 Keep a rollback binary only from an archive that passed both verification steps. Do not substitute a historical archive merely because its checksum matches if its provenance cannot be verified under `pushmanhq/pushman-cli`.
 

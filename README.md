@@ -59,7 +59,7 @@ claude "Install Pushman CLI from https://github.com/pushmanhq/pushman-cli using 
 
 Review and approve each command it proposes. See the [Installation Guide](docs/INSTALL.md) for Go installs, verified release archives, updates, uninstalling, and troubleshooting.
 
-**Windows:** use a verified x64 or ARM64 ZIP with the [PowerShell installation steps](docs/INSTALL.md#windows-zip-installation). The same executable provides the CLI and local stdio MCP server; it sends notifications to the iPhone app.
+**Windows:** download the x64 or ARM64 `setup.exe` from a release that includes installers, then follow the [Windows installation guide](docs/INSTALL.md#windows-installer). Go and administrator access are unnecessary. Older releases, including v0.3.0, provide [verified ZIPs](docs/INSTALL.md#windows-zip-installation). The same executable provides the CLI and local stdio MCP server; it sends notifications to the iPhone app.
 
 Then authorize the CLI in a browser:
 
