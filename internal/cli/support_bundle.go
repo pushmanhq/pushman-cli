@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 
@@ -78,7 +79,14 @@ func newSupportBundleCommand(deps Dependencies) *cobra.Command {
 				_ = os.Remove(output)
 				return fmt.Errorf("close support bundle: %w", closeErr)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Support bundle written locally to %s\n", output)
+			confirmation := fmt.Sprintf("Support bundle written locally to %s\n", output)
+			n, err := io.WriteString(cmd.OutOrStdout(), confirmation)
+			if err == nil && n < len(confirmation) {
+				err = io.ErrShortWrite
+			}
+			if err != nil {
+				return fmt.Errorf("support bundle saved locally to %s; write confirmation: %w", output, err)
+			}
 			return nil
 		},
 	}

@@ -111,6 +111,8 @@ account IDs, endpoints, message content, and diagnostic messages. It never uploa
 Like `doctor`, it may contact Pushman to check an authorized CLI's status; local storage does
 not mean offline execution. POSIX files use mode `0600`; Windows access follows the destination
 directory ACL. Inspect the file before sharing it privately with support.
+If writing the final confirmation to stdout fails, the command returns an error and preserves
+the completed bundle at the requested path.
 
 ## AI clients and MCP
 
