@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -17,6 +18,7 @@ type Dependencies struct {
 	Hostname    func() (string, error)
 	OpenBrowser func(string) error
 	SelfUpdate  func(context.Context) (string, error)
+	Now         func() time.Time
 	Service     Service
 	Version     VersionInfo
 }
@@ -50,6 +52,7 @@ func New(deps Dependencies) *cobra.Command {
 		newHistoryCommand(deps),
 		newUsageCommand(deps),
 		newDoctorCommand(deps),
+		newSupportBundleCommand(deps),
 		newMCPCommand(deps),
 		newSelfUpdateCommand(deps),
 		newVersionCommand(deps),
@@ -76,6 +79,9 @@ func withDefaults(deps Dependencies) Dependencies {
 	}
 	if deps.OpenBrowser == nil {
 		deps.OpenBrowser = func(string) error { return nil }
+	}
+	if deps.Now == nil {
+		deps.Now = time.Now
 	}
 	if deps.SelfUpdate == nil {
 		deps.SelfUpdate = func(context.Context) (string, error) {
