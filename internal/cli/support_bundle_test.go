@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -23,10 +24,10 @@ func TestSupportBundleRequiresExplicitLocalPathAndOmitsSensitiveMessages(t *test
 	path := filepath.Join(t.TempDir(), "support.json")
 	out := new(strings.Builder)
 	cmd := New(Dependencies{
-		Out: out,
+		Out:     out,
 		Service: supportBundleService{},
 		Version: VersionInfo{Version: "v-test", Commit: "abc123", Date: "2026-10-03"},
-		Now: func() time.Time { return time.Date(2026, 10, 3, 3, 30, 0, 0, time.UTC) },
+		Now:     func() time.Time { return time.Date(2026, 10, 3, 3, 30, 0, 0, time.UTC) },
 	})
 	cmd.SetArgs([]string{"support-bundle", "--output", path})
 	if err := cmd.Execute(); err != nil {
@@ -36,7 +37,7 @@ func TestSupportBundleRequiresExplicitLocalPathAndOmitsSensitiveMessages(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o600 {
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Fatalf("mode = %o", info.Mode().Perm())
 	}
 	data, err := os.ReadFile(path)
@@ -49,6 +50,9 @@ func TestSupportBundleRequiresExplicitLocalPathAndOmitsSensitiveMessages(t *test
 	}
 	if bundle.Schema != 1 || bundle.GeneratedAt != "2026-10-03T03:30:00Z" || len(bundle.Checks) != 2 {
 		t.Fatalf("bundle = %#v", bundle)
+	}
+	if runtime.GOOS == "windows" && !strings.Contains(bundle.Privacy, "destination directory ACL") {
+		t.Fatalf("Windows privacy contract missing: %q", bundle.Privacy)
 	}
 	text := string(data)
 	for _, secret := range []string{"private.example", "token=secret", "acct_secret", "pm_cli_secret"} {
