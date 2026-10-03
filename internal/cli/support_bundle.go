@@ -50,13 +50,17 @@ func newSupportBundleCommand(deps Dependencies) *cobra.Command {
 				// Support bundles intentionally keep only the check name and boolean result.
 				safeChecks = append(safeChecks, supportBundleCheck{Name: check.Name, OK: check.OK})
 			}
+			privacy := "Local-only. No tokens, message content, account IDs, endpoints, or diagnostic messages are included or uploaded."
+			if runtime.GOOS == "windows" {
+				privacy += " File access follows the destination directory ACL on Windows."
+			}
 			bundle := supportBundle{
-				Schema: 1,
+				Schema:      1,
 				GeneratedAt: deps.Now().UTC().Format("2006-01-02T15:04:05Z"),
-				Version: deps.Version,
-				Runtime: supportBundleRuntime{GOOS: runtime.GOOS, GOARCH: runtime.GOARCH},
-				Checks: safeChecks,
-				Privacy: "Local-only. No tokens, message content, account IDs, endpoints, or diagnostic messages are included or uploaded.",
+				Version:     deps.Version,
+				Runtime:     supportBundleRuntime{GOOS: runtime.GOOS, GOARCH: runtime.GOARCH},
+				Checks:      safeChecks,
+				Privacy:     privacy,
 			}
 			file, err := os.OpenFile(output, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 			if err != nil {
