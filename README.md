@@ -100,9 +100,17 @@ Use `pushman help push` to see every notification field and output option.
 | `pushman status` | Show authorization and account state |
 | `pushman rename <nickname>` | Rename this CLI |
 | `pushman doctor` | Diagnose configuration and connectivity |
+| `pushman support-bundle --output <path>` | Save a local support JSON file (unreleased) |
 | `pushman mcp` | Serve Pushman's MCP tools over stdio |
 | `pushman self-update` | Update a Homebrew-managed installation |
 | `pushman logout` | Revoke and remove the local CLI credential |
+
+The unreleased `support-bundle` command runs only when explicitly invoked with a new output
+path. It saves version/runtime metadata and diagnostic check names/results, excluding tokens,
+account IDs, endpoints, message content, and diagnostic messages. It never uploads the file.
+Like `doctor`, it may contact Pushman to check an authorized CLI's status; local storage does
+not mean offline execution. POSIX files use mode `0600`; Windows access follows the destination
+directory ACL. Inspect the file before sharing it privately with support.
 
 ## AI clients and MCP
 
