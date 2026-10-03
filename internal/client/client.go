@@ -99,9 +99,13 @@ func (s *Service) Pair(ctx context.Context, request cli.PairRequest) (cli.PairRe
 		}
 	}
 	interval := time.Duration(created.Interval) * time.Second
-	for s.clock().Before(created.ExpiresAt) {
-		if err := s.wait(ctx, interval); err != nil {
+	for {
+		ready, err := s.waitForAuthorizationPoll(ctx, created.ExpiresAt, interval)
+		if err != nil {
 			return cli.PairResult{}, err
+		}
+		if !ready {
+			break
 		}
 		poll, err := s.api.GetPairingWithResponse(ctx, created.Id, &api.GetPairingParams{PairingSecret: created.PairingSecret})
 		if err != nil {
@@ -150,6 +154,9 @@ func (s *Service) Login(ctx context.Context, request cli.LoginRequest) (cli.Pair
 		return cli.PairResult{}, responseError(response.StatusCode(), response.JSONDefault)
 	}
 	created := response.JSON200
+	// The code lifetime includes time spent displaying the challenge or opening
+	// the browser; user interaction must not extend the authorization deadline.
+	deadline := s.clock().Add(time.Duration(created.ExpiresIn) * time.Second)
 	if request.OnChallenge != nil {
 		if err := request.OnChallenge(cli.LoginChallenge{
 			UserCode: created.UserCode, VerificationURL: created.VerificationUri,
@@ -159,10 +166,13 @@ func (s *Service) Login(ctx context.Context, request cli.LoginRequest) (cli.Pair
 		}
 	}
 	interval := time.Duration(created.Interval) * time.Second
-	deadline := s.clock().Add(time.Duration(created.ExpiresIn) * time.Second)
-	for s.clock().Before(deadline) {
-		if err := s.wait(ctx, interval); err != nil {
+	for {
+		ready, err := s.waitForAuthorizationPoll(ctx, deadline, interval)
+		if err != nil {
 			return cli.PairResult{}, err
+		}
+		if !ready {
+			break
 		}
 		tokenResponse, err := s.api.ExchangeDeviceCodeWithFormdataBodyWithResponse(ctx, api.ExchangeDeviceCodeFormdataRequestBody{
 			ClientId:   api.ExchangeDeviceCodeFormdataBodyClientIdPushmanCli,
@@ -199,6 +209,21 @@ func (s *Service) Login(ctx context.Context, request cli.LoginRequest) (cli.Pair
 		}
 	}
 	return cli.PairResult{}, &cli.ServiceError{Code: "login_expired", Message: "Login expired; run pushman login again."}
+}
+
+// waitForAuthorizationPoll preserves the server's minimum polling interval while
+// stopping at expiry. A shortened final wait expires without dispatching a poll.
+func (s *Service) waitForAuthorizationPoll(ctx context.Context, deadline time.Time, interval time.Duration) (bool, error) {
+	remaining := deadline.Sub(s.clock())
+	if remaining <= 0 {
+		return false, nil
+	}
+	if err := s.wait(ctx, min(interval, remaining)); err != nil {
+		return false, err
+	}
+	// A final wait must never poll early, even if the wall clock moves backward.
+	// A full timer may also resume late (for example, after waking from sleep).
+	return remaining > interval && s.clock().Before(deadline), nil
 }
 
 func (s *Service) Status(ctx context.Context) (cli.StatusResult, error) {
