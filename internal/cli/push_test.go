@@ -160,7 +160,7 @@ func TestPairingVerificationURL(t *testing.T) {
 func TestCommandSurface(t *testing.T) {
 	t.Parallel()
 	root := New(Dependencies{})
-	for _, path := range [][]string{{"pair"}, {"login"}, {"status"}, {"rename"}, {"logout"}, {"push"}, {"devices"}, {"history"}, {"history", "show"}, {"usage"}, {"doctor"}, {"mcp"}, {"self-update"}, {"version"}, {"help"}} {
+	for _, path := range [][]string{{"pair"}, {"login"}, {"status"}, {"rename"}, {"logout"}, {"push"}, {"devices"}, {"history"}, {"history", "show"}, {"usage"}, {"doctor"}, {"support-bundle"}, {"mcp"}, {"self-update"}, {"version"}, {"help"}} {
 		if _, _, err := root.Find(path); err != nil {
 			t.Errorf("command %q missing: %v", strings.Join(path, " "), err)
 		}
