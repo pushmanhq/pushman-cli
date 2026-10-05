@@ -92,7 +92,7 @@ jobs:
           $compiler = .\scripts\ensure-inno-setup.ps1
           $candidate = .\scripts\build-windows-installer.ps1 -Version $version -Architecture $env:RELEASE_ARCH -Executable .bin\pushman.exe -Compiler $compiler
           .\scripts\test-windows-installer.ps1 -Installer $candidate.Installer -Executable .bin\pushman.exe -Version $version -Architecture $env:RELEASE_ARCH -Compiler $compiler
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-installer-${{ matrix.arch }}
           path: dist/windows/*_setup.exe
@@ -125,7 +125,7 @@ jobs:
           .\scripts\new-winget-manifests.ps1 -Tag $env:RELEASE_TAG -InstallerDirectory windows-dist -RequireWinget
           $version = $env:RELEASE_TAG.Substring(1)
           Compress-Archive -Path dist\winget\manifests -DestinationPath "windows-dist\pushman_${version}_winget.zip"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: winget-bundle
           path: windows-dist/*_winget.zip
