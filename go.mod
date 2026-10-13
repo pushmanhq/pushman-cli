@@ -1,6 +1,6 @@
 module github.com/pushmanhq/pushman-cli
 
-go 1.27.0
+go 1.27.2
 
 require (
 	github.com/google/jsonschema-go v0.4.3

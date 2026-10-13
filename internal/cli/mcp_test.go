@@ -41,7 +41,7 @@ func TestMCPToolSurfaceAndCalls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := len(listed.Tools), 7; got != want {
+	if got, want := len(listed.Tools), 17; got != want {
 		t.Fatalf("tool count = %d, want %d", got, want)
 	}
 	tools := make(map[string]*mcp.Tool, len(listed.Tools))
@@ -77,7 +77,7 @@ func TestMCPToolSurfaceAndCalls(t *testing.T) {
 		}
 	}
 	for name, tool := range tools {
-		if name != "pushman_send_notification" && !tool.Annotations.ReadOnlyHint {
+		if (name == "pushman_list_devices" || name == "pushman_list_history" || name == "pushman_get_message" || name == "pushman_get_usage" || name == "pushman_get_status" || name == "pushman_doctor") && !tool.Annotations.ReadOnlyHint {
 			t.Fatalf("read tool %q is not marked read-only", name)
 		}
 	}
@@ -224,9 +224,12 @@ func TestMCPHelperProcess(t *testing.T) {
 }
 
 func connectMCPTestClient(t *testing.T, service Service) (*mcp.ClientSession, func()) {
+	return connectMCPDependencies(t, Dependencies{Service: service, Version: VersionInfo{Version: "test"}})
+}
+func connectMCPDependencies(t *testing.T, deps Dependencies) (*mcp.ClientSession, func()) {
 	t.Helper()
 	serverTransport, clientTransport := mcp.NewInMemoryTransports()
-	server := newMCPServer(Dependencies{Service: service, Version: VersionInfo{Version: "test"}})
+	server := newMCPServer(deps)
 	serverSession, err := server.Connect(context.Background(), serverTransport, nil)
 	if err != nil {
 		t.Fatal(err)
