@@ -62,6 +62,7 @@ func newMCPServer(deps Dependencies) *mcp.Server {
 	})
 
 	registerMCPTools(server, deps.Service)
+	registerMCPAccountTools(server, withDefaults(deps))
 	return server
 }
 
@@ -180,7 +181,7 @@ func registerMCPTools(server *mcp.Server, service Service) {
 		if err != nil {
 			return nil, mcpStatusOutput{}, err
 		}
-		return nil, mcpStatusOutput{Paired: status.Paired, Nickname: status.Nickname}, nil
+		return nil, mcpStatusOutput{Paired: status.Paired, Nickname: status.Nickname, Method: status.Method}, nil
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -286,6 +287,7 @@ type mcpUsageOutput struct {
 type mcpStatusOutput struct {
 	Paired   bool   `json:"paired"`
 	Nickname string `json:"nickname,omitempty"`
+	Method   string `json:"method,omitempty"`
 }
 
 type mcpDoctorCheck struct {

@@ -2,7 +2,7 @@
 
 `pushman mcp` serves the Model Context Protocol over standard input and output from the installed Pushman CLI binary. It is intended for local AI clients and uses the same Pushman API origin, operating-system credential, validation rules, and monthly allowance as normal CLI commands.
 
-No additional daemon, remote MCP endpoint, MCP account, or plaintext token file is required.
+No additional daemon or plaintext token file is required for local stdio. A hosted OAuth plugin is also available when its connection has been deployed; see the [hosted MCP guide](https://github.com/pushmanhq/pushman/blob/main/docs/MCP.md).
 
 ## Prerequisites
 
@@ -141,3 +141,30 @@ make build-dev
 Tests negotiate with the official MCP Go SDK client, verify all schemas and safety annotations, exercise successful and failed tool calls, and run the Cobra command in a separate process to prove protocol-only stdout and clean EOF shutdown.
 
 On Windows, `go test -v ./internal/wincheck` builds the real main package into a path with spaces and Korean characters, then exercises the official SDK client against that executable and a loopback API. It verifies negotiation, tool schemas, success/error, send-only authorization, protocol-only stdout, EOF, restart, and cancellation of an in-flight API call. This does not substitute for acceptance in a specific desktop host.
+
+## CLI workflow parity (v0.5.0)
+
+Local MCP exposes 17 tools. The original seven tools retain their notification
+fields, output contract and explicit-send policy. The additional workflows are:
+
+| CLI command | Local MCP tool | Behavior |
+| --- | --- | --- |
+| `login`, `pair` | `pushman_login`, `pushman_pair` | Start explicitly requested human-approved authorization; return a public URL/code and progress handle. |
+| Authorization progress | `pushman_get_authorization` | Read the exact process-local handle. |
+| Cancel pending authorization | `pushman_cancel_authorization` | Stop polling; does not revoke a completed credential. |
+| `rename` | `pushman_rename_sender` | Rename only the current sender. |
+| `logout` | `pushman_logout` | Revoke the current credential and remove it locally. |
+| `support-bundle` | `pushman_get_support_bundle` | Return privacy-safe JSON to the client; no local file or support upload. |
+| `version` | `pushman_get_version` | Report this process's loaded build. |
+| `help` | `pushman_get_capabilities` | Map commands to MCP workflows and explain transport limits. |
+| `self-update` | `pushman_self_update` | Reuse the eligible Homebrew ownership check; requires an explicit binary-update request. |
+
+Do not invent an authorization handle, restart a pending attempt, auto-retry a
+denial/expiry, or submit provider credentials for the user. Client disconnect
+stops pending polling. Verify status after completion; no test send is implied.
+
+Account-management tools do not change the send-only automation-token boundary.
+After self-update, the existing MCP process still runs its loaded version.
+Restart the client's Pushman subprocess and verify version/tool discovery before
+claiming updated tools are active. Hosted OAuth has its own sender and token
+family; a hosted service cannot modify this computer's keyring or executable.

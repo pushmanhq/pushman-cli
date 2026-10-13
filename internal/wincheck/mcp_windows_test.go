@@ -112,7 +112,7 @@ func TestWindowsMCPExecutableAndRestart(t *testing.T) {
 		func() {
 			defer process.close(t)
 			tools, err := process.session.ListTools(t.Context(), nil)
-			if err != nil || len(tools.Tools) != 7 {
+			if err != nil || len(tools.Tools) != 17 {
 				t.Fatalf("actual CLI tools/list failed: %v", err)
 			}
 			for _, tool := range tools.Tools {
