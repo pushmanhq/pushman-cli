@@ -91,9 +91,12 @@ The server is a long-running stdio subprocess. Do not start it manually and expe
 | `pushman_get_status` | Reads local authorization state and sender nickname | Account CLI credential |
 | `pushman_doctor` | Runs non-mutating credential and service connectivity checks | Account CLI credential |
 
-The send tool is explicitly described to clients as non-read-only, non-idempotent, non-destructive/additive, and open-world. All other tools are read-only and open-world because they contact the hosted Pushman service. Tool annotations are safety hints, not an authorization boundary; the hosted API still enforces the credential's capabilities and account quota.
+The send tool is explicitly described to clients as non-read-only, non-idempotent, non-destructive/additive, and open-world. The six original read tools are read-only and open-world because they contact the hosted Pushman service. The additional account and local workflows have their own annotations. Tool annotations are safety hints, not an authorization boundary; the hosted API still enforces the credential's capabilities and account quota.
 
-Pairing, logout, sender rename, credential creation or revocation, account changes, and billing are deliberately not exposed through MCP. Remote Streamable HTTP, MCP resources, and MCP prompts are not part of this version.
+Local login/pair, sender rename/logout, diagnostics and eligible binary update
+are described in [CLI workflow parity](#cli-workflow-parity-v050) below. Account
+administration, billing, MCP resources and MCP prompts remain outside this local
+tool surface. Hosted Streamable HTTP uses the separate OAuth endpoint and sender.
 
 Usage results may include server-provided `plan` and `billingState` metadata. Older servers
 omit them; clients must not infer a plan from the numerical limit. `billingState: unavailable`
