@@ -20,7 +20,7 @@ git clone https://github.com/pushmanhq/pushman-cli.git
 cd pushman-cli
 go mod download
 go generate ./internal/api
-go test -race ./...
+go test -p=1 -parallel=1 ./...
 go vet ./...
 make pdev ARGS=help
 ```
@@ -73,7 +73,7 @@ try {
 
 The suite writes only a unique `com.pushman.test.*` entry with a synthetic value, registers cleanup before writing, and checks restart persistence/namespace isolation/deletion. A skipped suite is `NOT RUN`; an unavailable store in an opted-in run fails verification.
 
-CI keeps Linux race/generated-client/script/vulnerability checks, macOS portability, and native Windows x64/ARM64 jobs. The Windows jobs record their image and native architecture and run credential/process tests, vet, an explicit `.exe` build, three-shell smoke, and checksum/provenance/version/help checks on the pinned published ZIP. Use the [verification record](docs/WINDOWS_VERIFICATION.md) for release and desktop-host evidence. A PowerShell script policy may disallow a local `.ps1` test wrapper; native Go tests and typed `.exe` commands do not require changing that policy.
+CI keeps Linux unit/core/generated-client/script/vulnerability checks, then a sequential macOS/native Windows x64/ARM64 matrix. Go package/test schedulers and matrix concurrency use one. Windows records its image/native architecture and runs credential/process tests, vet, an explicit `.exe` build and three-shell smoke. These native keyring, console, shell and MCP contracts protect OS behavior that mock/Linux checks cannot establish; they use bounded synthetic, loopback fixtures on standard hosted workers on every source PR. Published-ZIP/provenance, installer lifecycle and WinGet qualification remain in the existing exact-source release workflow-call profile. Use the [verification record](docs/WINDOWS_VERIFICATION.md) for release and desktop-host evidence. A PowerShell script policy may disallow a local `.ps1` test wrapper; native Go tests and typed `.exe` commands do not require changing that policy.
 
 ### Windows packaging
 
@@ -87,7 +87,7 @@ $candidate = .\scripts\build-windows-installer.ps1 -Version 0.0.1-ci -Architectu
 .\scripts\test-windows-installer.ps1 -Installer $candidate.Installer -Executable .bin\pushman.exe -Version 0.0.1-ci -Architecture x86_64 -Compiler $compiler
 ```
 
-Use `arm64` on native ARM64 Windows. Run lifecycle qualification on a disposable Windows account: it installs into an owned temporary directory, refuses an existing registered installation, and restores the exact user PATH value/type/existence in cleanup. It exercises real installation, repeat installation, update/rollback fixtures, PATH opt-out/preexisting entries, and removal while preserving unrelated files. It never logs in or sends a notification. CI runs both architectures and validates WinGet manifests. See [Windows distribution](docs/WINDOWS_DISTRIBUTION.md) for release gates and catalog submission.
+Use `arm64` on native ARM64 Windows. Run lifecycle qualification on a disposable Windows account: it installs into an owned temporary directory, refuses an existing registered installation, and restores the exact user PATH value/type/existence in cleanup. It exercises real installation, repeat installation, update/rollback fixtures, PATH opt-out/preexisting entries, and removal while preserving unrelated files. It never logs in or sends a notification. The existing exact-source release CI profile runs both architectures and validates WinGet manifests. For related packaging changes, perform the same local qualification before submitting the PR and record native architecture, exact SHA/bytes, commands and results; unexecuted native/installer checks are explicit limits. See [Windows distribution](docs/WINDOWS_DISTRIBUTION.md) for release gates and catalog submission.
 
 ### Pull request checks
 
@@ -97,10 +97,24 @@ Before submitting a pull request:
 test -z "$(gofmt -l .)"
 go generate ./internal/api
 git diff --exit-code -- internal/api/api.gen.go
-go test -race ./...
+go test -p=1 -parallel=1 ./...
 go vet ./...
 ```
 
 Keep changes focused. Add or update tests for user-visible behavior, preserve the stdout/stderr contract, and do not hand-edit the generated API client. Commit messages use `type: imperative summary`, for example `fix: reject an empty notification body`.
 
 By contributing, you agree that your contributions are licensed under the repository's [MIT License](LICENSE). All participants must follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+### Additional qualification at PR submission
+
+Basic CI uses normal unit/core checks. Any additional component/integration/race/
+E2E needs a protected critical failure, why smaller checks cannot detect it, why
+every relevant PR needs automation, and a stable isolated budget. No broad race
+profile meets a separate per-PR need here; use `make test-race` locally for related
+shared-memory changes and record exact SHA, environment, commands, scope, results
+and skipped/untested boundaries in the PR body/comment. Runtime concurrency
+assertions remain active. Packaging changes require the documented local native
+ZIP/installer/WinGet contracts; release qualification still uses the original
+automatic workflow call. Do not introduce manual Actions or nightly workflows
+as a substitute. Diagnose setup, slow cases and resource pressure before adding
+workers or sharding. Source CI never sends a notification or qualifies login.

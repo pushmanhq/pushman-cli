@@ -3,7 +3,7 @@ PDEV_BINARY ?= .bin/pushman-dev
 PDEV_INSTALL_PATH ?= $(HOME)/.local/bin/pdev
 PDEV_LDFLAGS = -X main.version=dev-local -X main.commit=working-tree -X main.date=local -X main.defaultBaseURL=$(PDEV_API_URL) -X main.credentialNamespace=dev -X main.automationTokenEnvironment=PUSHMAN_DEV_TOKEN
 
-.PHONY: build-dev dev pdev install-dev test
+.PHONY: build-dev dev pdev install-dev test test-race
 
 build-dev:
 	mkdir -p $(dir $(PDEV_BINARY))
@@ -17,5 +17,9 @@ install-dev:
 	go build -trimpath -ldflags "$(PDEV_LDFLAGS)" -o $(PDEV_INSTALL_PATH) ./cmd/pushman
 
 test:
-	go test -race ./...
+	go test -p=1 -parallel=1 ./...
+	go vet ./...
+
+test-race:
+	go test -race -p=1 -parallel=1 ./...
 	go vet ./...
