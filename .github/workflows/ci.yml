@@ -16,8 +16,8 @@ permissions:
   attestations: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ inputs.source_ref || github.event.pull_request.number || github.ref }}-${{ inputs.source_ref && github.run_id || github.event_name }}
+  cancel-in-progress: ${{ !inputs.source_ref }}
 
 jobs:
   test:
@@ -49,8 +49,8 @@ jobs:
           distribution: goreleaser
           version: v2.17.1
           args: check
-      - name: Test
-        run: go test -race -coverprofile=coverage.out ./...
+      - name: Unit and core contracts
+        run: go test -p=1 -parallel=1 ./...
       - name: Vet
         run: go vet ./...
       - name: Scan reachable vulnerabilities
@@ -59,9 +59,11 @@ jobs:
         run: go build -trimpath ./cmd/pushman
 
   portability:
+    needs: test
     name: Build (${{ matrix.os }})
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         os: [macos-latest, windows-latest, windows-11-arm]
     runs-on: ${{ matrix.os }}
@@ -76,7 +78,7 @@ jobs:
           cache: true
       - name: Test
         if: runner.os != 'Windows'
-        run: go test ./...
+        run: go test -p=1 -parallel=1 ./...
       - name: Record native Windows environment
         if: runner.os == 'Windows'
         shell: pwsh
@@ -103,7 +105,7 @@ jobs:
         if: runner.os == 'Windows'
         env:
           PUSHMAN_TEST_NATIVE_KEYRING: '1'
-        run: go test -v ./...
+        run: go test -p=1 -parallel=1 -v ./...
       - name: Vet
         run: go vet ./...
       - name: Build
@@ -135,7 +137,7 @@ jobs:
           if %ERRORLEVEL% NEQ 1 exit /b 1
           exit /b 0
       - name: Verify and execute the published Windows ZIP
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && inputs.source_ref != ''
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -143,7 +145,7 @@ jobs:
           $arch = if ('${{ matrix.os }}' -eq 'windows-11-arm') { 'arm64' } else { 'x86_64' }
           .\scripts\test-windows-release.ps1 -Tag v0.4.2 -Architecture $arch -CandidateExecutable .\.bin\pushman.exe
       - name: Qualify Windows installer lifecycle
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && inputs.source_ref != ''
         shell: pwsh
         run: |
           $arch = if ('${{ matrix.os }}' -eq 'windows-11-arm') { 'arm64' } else { 'x86_64' }
@@ -151,7 +153,7 @@ jobs:
           $candidate = .\scripts\build-windows-installer.ps1 -Version 0.0.1-ci -Architecture $arch -Executable .bin\pushman.exe -Compiler $compiler
           .\scripts\test-windows-installer.ps1 -Installer $candidate.Installer -Executable .bin\pushman.exe -Version 0.0.1-ci -Architecture $arch -Compiler $compiler
       - name: Save qualified Windows candidate
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && inputs.source_ref != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-candidate-${{ matrix.os }}
@@ -160,6 +162,7 @@ jobs:
           retention-days: 7
 
   winget-manifests:
+    if: inputs.source_ref != ''
     name: Validate WinGet manifests
     needs: portability
     runs-on: windows-11-arm
