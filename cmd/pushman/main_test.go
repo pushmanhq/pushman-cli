@@ -1,8 +1,13 @@
 package main
 
 import (
+	"errors"
 	"runtime/debug"
 	"testing"
+
+	pushclient "github.com/pushmanhq/pushman-cli/internal/client"
+	"github.com/pushmanhq/pushman-cli/internal/credential"
+	keyring "github.com/zalando/go-keyring"
 )
 
 func TestResolveVersionInfoUsesModuleAndVCSMetadata(t *testing.T) {
@@ -52,5 +57,32 @@ func TestCredentialServiceNameSeparatesDevelopmentCredentials(t *testing.T) {
 	}
 	if development != production+".dev" {
 		t.Fatalf("development credential service = %q", development)
+	}
+}
+
+func TestMigratedEndpointRequiresAnIndependentKeyringLogin(t *testing.T) {
+	keyring.MockInit()
+	old := credential.NewKeyring(credentialServiceName("https://api.pushman.whitekiwi.link/v1", ""))
+	target := credential.NewKeyring(credentialServiceName(pushclient.DefaultBaseURL, ""))
+	if err := old.Set("synthetic-old-endpoint-token"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := target.Get(); !errors.Is(err, credential.ErrNotFound) {
+		t.Fatal("new endpoint reused an existing endpoint credential")
+	}
+	if err := target.Set("synthetic-new-endpoint-token"); err != nil {
+		t.Fatal(err)
+	}
+	if token, err := old.Get(); err != nil || token != "synthetic-old-endpoint-token" {
+		t.Fatal("new login changed the original endpoint credential")
+	}
+	if err := target.Delete(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := target.Get(); !errors.Is(err, credential.ErrNotFound) {
+		t.Fatal("new endpoint logout did not clear its own credential")
+	}
+	if token, err := old.Get(); err != nil || token != "synthetic-old-endpoint-token" {
+		t.Fatal("new endpoint logout changed the original endpoint credential")
 	}
 }
