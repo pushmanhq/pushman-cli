@@ -143,7 +143,14 @@ The CLI source is MIT licensed. The hosted Pushman service, iPhone app, monthly 
 
 ## Configuration
 
-The production API is `https://api.pushman.whitekiwi.link/v1`. For local development, an explicit loopback override is supported:
+The next release targets `https://api.pushman.io/v1`. Service cutover and client
+publication are still pending; existing releases use
+`https://api.pushman.whitekiwi.link/v1` until updated. A build using the new endpoint
+requires `pushman login` again. Credentials are scoped to the API base: login and
+logout at the new endpoint preserve the old endpoint's keyring entry. There is no
+automatic credential copy or fallback to the previous API.
+
+For local development, an explicit loopback override is supported:
 
 ```sh
 make pdev ARGS=status
