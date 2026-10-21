@@ -146,7 +146,7 @@ The CLI source is MIT licensed. The hosted Pushman service, iPhone app, monthly 
 CLI [v0.5.2](https://github.com/pushmanhq/pushman-cli/releases/tag/v0.5.2) defaults to
 the live service at `https://api.pushman.io/v1`. Update older CLI installations
 and restart local MCP clients. Previous `pushman.whitekiwi.link` service
-addresses are retired and return `410 Gone`.
+addresses are retired.
 The new endpoint requires `pushman login` again. Credentials are scoped to the API base: login and
 logout at the new endpoint preserve the old endpoint's keyring entry. There is no
 automatic credential copy or fallback to the previous API.
