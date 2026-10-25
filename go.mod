@@ -8,7 +8,7 @@ require (
 	github.com/oapi-codegen/runtime v1.7.0
 	github.com/spf13/cobra v1.10.2
 	github.com/zalando/go-keyring v0.2.8
-	golang.org/x/sys v0.41.0
+	golang.org/x/sys v0.49.0
 	golang.org/x/text v0.43.0
 )
 
